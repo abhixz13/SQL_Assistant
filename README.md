@@ -13,7 +13,7 @@ A simple AI-powered SQL assistant that can understand natural language queries, 
 ## Prerequisites
 
 - Node.js (v14 or higher)
-- Snowflake account with Cisco SSO access
+- Snowflake account with SSO access
 - OpenAI API key
 - Access to your Snowflake database schema
 
@@ -37,12 +37,12 @@ Edit `.env` with your actual values:
 
 ```env
 # Snowflake Configuration (SSO Authentication)
-SNOWFLAKE_ACCOUNT=CISCO
-SNOWFLAKE_USER=ABHIJES2
-SNOWFLAKE_ROLE=PUBLIC
-SNOWFLAKE_WAREHOUSE=COMPUTE_WH
-SNOWFLAKE_DATABASE=ENGIT_DB
-SNOWFLAKE_SCHEMA=ENGIT_ISDATAMART_BR
+SNOWFLAKE_ACCOUNT=your_snowflake_account
+SNOWFLAKE_USER=your_snowflake_username
+SNOWFLAKE_ROLE=your_snowflake_role
+SNOWFLAKE_WAREHOUSE=your_warehouse_name
+SNOWFLAKE_DATABASE=your_database_name
+SNOWFLAKE_SCHEMA=your_schema_name
 
 # OpenAI Configuration
 OPENAI_API_KEY=your_openai_api_key_here
@@ -62,10 +62,11 @@ PORT=3001
 ### 4. Configure Snowflake Access
 
 You'll need:
-- **Warehouse**: The compute resource (e.g., `COMPUTE_WH`)
+- **Account**: Your Snowflake account identifier
+- **Warehouse**: The compute resource for query execution
 - **Database**: Your target database name
 - **Schema**: The schema containing your tables
-- **Role**: Your Snowflake role (e.g., `PUBLIC`)
+- **Role**: Your Snowflake role
 - **SSO Authentication**: The system uses external browser authentication
 
 ### 5. Start the Application
