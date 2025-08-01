@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI SQL Assistant for Snowflake</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 30px;
+        }
+
+        .query-section {
+            margin-bottom: 30px;
+        }
+
+        .query-input {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .query-input input {
+            flex: 1;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .query-input input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .query-input button {
+            padding: 15px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .query-input button:hover {
+            transform: translateY(-2px);
+        }
+
+        .query-input button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .results-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 30px;
+        }
+
+        .result-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid #e1e5e9;
+        }
+
+        .result-card h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .sql-display {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            overflow-x: auto;
+            margin-bottom: 15px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 400px;
+            margin-top: 20px;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #e1e5e9;
+        }
+
+        .data-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+
+        .error {
+            background: #fed7d7;
+            color: #c53030;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .success {
+            background: #c6f6d5;
+            color: #2f855a;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        @media (max-width: 768px) {
+            .results-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .query-input {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 AI SQL Assistant</h1>
+            <p>Ask questions about your Snowflake data in plain English</p>
+        </div>
+
+        <div class="main-content">
+            <div class="query-section">
+                <div class="query-input">
+                    <input 
+                        type="text" 
+                        id="queryInput" 
+                        placeholder="Ask a question about your data (e.g., 'Show me sales by month', 'What are the top 10 customers?')"
+                        onkeypress="handleKeyPress(event)"
+                    >
+                    <button onclick="processQuery()" id="queryButton">Ask AI</button>
+                </div>
+            </div>
+
+            <div id="loading" class="loading" style="display: none;">
+                <p>🤔 AI is thinking and generating SQL...</p>
+            </div>
+
+            <div id="error" class="error" style="display: none;"></div>
+            <div id="success" class="success" style="display: none;"></div>
+
+            <div id="results" class="results-section" style="display: none;">
+                <div class="result-card">
+                    <h3>📊 Generated SQL Query</h3>
+                    <div id="sqlDisplay" class="sql-display"></div>
+                </div>
+
+                <div class="result-card">
+                    <h3>📈 Data Visualization</h3>
+                    <div id="chartContainer" class="chart-container">
+                        <canvas id="chartCanvas"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div id="dataTable" style="display: none;">
+                <div class="result-card">
+                    <h3>📋 Data Summary</h3>
+                    <table id="tableData" class="data-table"></table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentChart = null;
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter') {
+                processQuery();
+            }
+        }
+
+        async function processQuery() {
+            const queryInput = document.getElementById('queryInput');
+            const queryButton = document.getElementById('queryButton');
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            const success = document.getElementById('success');
+            const results = document.getElementById('results');
+            const dataTable = document.getElementById('dataTable');
+
+            const query = queryInput.value.trim();
+            if (!query) {
+                showError('Please enter a query');
+                return;
+            }
+
+            // Show loading
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            success.style.display = 'none';
+            results.style.display = 'none';
+            dataTable.style.display = 'none';
+            queryButton.disabled = true;
+
+            try {
+                const response = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showSuccess('Query processed successfully!');
+                    displayResults(data);
+                } else {
+                    showError(data.error || 'Failed to process query');
+                }
+            } catch (err) {
+                showError('Network error: ' + err.message);
+            } finally {
+                loading.style.display = 'none';
+                queryButton.disabled = false;
+            }
+        }
+
+        function displayResults(data) {
+            const results = document.getElementById('results');
+            const dataTable = document.getElementById('dataTable');
+            const sqlDisplay = document.getElementById('sqlDisplay');
+            const tableData = document.getElementById('tableData');
+
+            // Display SQL
+            sqlDisplay.textContent = data.generatedSQL;
+
+            // Display summary information instead of raw data
+            if (data.summary) {
+                displaySummary(data.summary, data.rowCount);
+                dataTable.style.display = 'block';
+            }
+
+            // Create chart with aggregated data
+            if (data.chartData && data.chartData.type === 'aggregated') {
+                createAggregatedChart(data.chartData, data.chartSuggestion);
+            }
+
+            results.style.display = 'grid';
+        }
+
+        function displaySummary(summary, rowCount) {
+            const table = document.getElementById('tableData');
+            
+            let tableHTML = '<thead><tr><th>Summary Information</th><th>Value</th></tr></thead><tbody>';
+            tableHTML += `<tr><td>Total Rows</td><td>${rowCount}</td></tr>`;
+            tableHTML += `<tr><td>Column Count</td><td>${summary.columnCount}</td></tr>`;
+            tableHTML += `<tr><td>Has Numeric Data</td><td>${summary.hasNumericData ? 'Yes' : 'No'}</td></tr>`;
+            tableHTML += `<tr><td>Has Date Data</td><td>${summary.hasDateData ? 'Yes' : 'No'}</td></tr>`;
+            
+            if (summary.columnNames && summary.columnNames.length > 0) {
+                tableHTML += `<tr><td>Columns</td><td>${summary.columnNames.join(', ')}</td></tr>`;
+            }
+            
+            tableHTML += '</tbody>';
+            table.innerHTML = tableHTML;
+        }
+
+        function createAggregatedChart(chartData, chartType) {
+            const ctx = document.getElementById('chartCanvas').getContext('2d');
+            
+            if (currentChart) {
+                currentChart.destroy();
+            }
+
+            if (chartData.type === 'summary') {
+                // Display summary message instead of chart
+                const canvas = document.getElementById('chartCanvas');
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#667eea';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(chartData.message, canvas.width / 2, canvas.height / 2);
+                return;
+            }
+
+            if (chartData.type === 'aggregated' && chartData.statistics) {
+                const numericColumns = Object.keys(chartData.statistics);
+                if (numericColumns.length === 0) return;
+
+                // Create bar chart showing statistics for each numeric column
+                const labels = numericColumns;
+                const datasets = [
+                    {
+                        label: 'Average',
+                        data: numericColumns.map(col => chartData.statistics[col].avg),
+                        backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                        borderColor: '#667eea',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Maximum',
+                        data: numericColumns.map(col => chartData.statistics[col].max),
+                        backgroundColor: 'rgba(118, 75, 162, 0.8)',
+                        borderColor: '#764ba2',
+                        borderWidth: 1
+                    },
+                    {
+                        label: 'Minimum',
+                        data: numericColumns.map(col => chartData.statistics[col].min),
+                        backgroundColor: 'rgba(240, 147, 251, 0.8)',
+                        borderColor: '#f093fb',
+                        borderWidth: 1
+                    }
+                ];
+
+                const chartConfig = {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Data Statistics Summary'
+                            },
+                            legend: {
+                                display: true
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                };
+
+                currentChart = new Chart(ctx, chartConfig);
+            }
+        }
+
+        function showError(message) {
+            const error = document.getElementById('error');
+            error.textContent = message;
+            error.style.display = 'block';
+        }
+
+        function showSuccess(message) {
+            const success = document.getElementById('success');
+            success.textContent = message;
+            success.style.display = 'block';
+        }
+
+        // Check server health on load
+        window.addEventListener('load', async () => {
+            try {
+                const response = await fetch('/api/health');
+                const data = await response.json();
+                console.log('Server status:', data);
+            } catch (err) {
+                console.error('Server not responding:', err);
+            }
+        });
+    </script>
+</body>
+</html> 
